@@ -10,11 +10,11 @@ export default function PerfiPayLayout({
 }: PerfiPayLayoutProps) {
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      <header className="border-b border-amber-400/20 bg-slate-950">
+      <header className="border-b border-amber-400/20">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
           <a
             href="/perfi-pay"
-            className="text-2xl font-bold tracking-wide text-amber-400"
+            className="text-2xl font-bold text-amber-400"
           >
             PERFI<span className="text-white">PAY</span>
           </a>
@@ -33,7 +33,9 @@ export default function PerfiPayLayout({
       </main>
 
       <footer className="border-t border-amber-400/20 px-6 py-6 text-center text-sm text-slate-400">
-        © {new Date().getFullYear()} PERFITECH GLOBAL VENTURE LIMITED
+        <p>
+          © {new Date().getFullYear()} PERFITECH GLOBAL VENTURE LIMITED
+        </p>
         <p className="mt-2 text-amber-400">
           INNOVATION | INVEST | BUILD | GROW | GLOBAL
         </p>
