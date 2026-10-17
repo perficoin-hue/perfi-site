@@ -1,0 +1,23 @@
+pages/
+└── perfi-pay/
+    └── index.tsx
+
+components/
+└── perfipay/
+    └── PerfiPayLayout.tsx
+
+features/
+├── auth/
+├── security/
+├── profile/
+├── wallet/
+├── kyc/
+├── referrals/
+├── staking/
+├── mining/
+├── presale/
+├── marketplace/
+└── bills/
+
+lib/
+└── supabaseClient.ts
