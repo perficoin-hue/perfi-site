@@ -1,65 +1,107 @@
 
 import Link from "next/link";
-import PerfiPayLayout from "../../components/perfipay/PerfiPayLayout";
 
 export default function PerfiPayHome() {
   return (
-    <PerfiPayLayout>
-      <section className="grid items-center gap-12 py-10 md:grid-cols-2 md:py-20">
+    <main className="min-h-screen bg-slate-950 text-white">
+      <header className="border-b border-amber-400/20">
+        <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+          <Link href="/perfi-pay" className="text-2xl font-black text-amber-400">
+            PERFI<span className="text-white">PAY</span>
+          </Link>
+          <Link href="/" className="text-sm text-slate-300 hover:text-amber-400">
+            Main Website
+          </Link>
+        </nav>
+      </header>
+
+      <section className="mx-auto grid max-w-7xl items-center gap-12 px-6 py-20 md:grid-cols-2 md:py-28">
         <div>
-          <p className="mb-4 font-semibold uppercase tracking-[0.2em] text-amber-400">
-            Welcome to PerfiPay
+          <p className="mb-5 text-sm font-bold uppercase tracking-[0.25em] text-amber-400">
+            Payments • Wallet • Marketplace
           </p>
 
-          <h1 className="text-4xl font-bold leading-tight sm:text-5xl">
-            Your digital finance journey starts here.
+          <h1 className="text-5xl font-black leading-tight sm:text-6xl">
+            Your money.
+            <span className="block text-amber-400">Your possibilities.</span>
           </h1>
 
-          <p className="mt-6 max-w-xl leading-7 text-slate-300">
-            Explore the future of digital payments, crypto assets,
-            staking, marketplace services and more through PerfiPay.
+          <p className="mt-6 max-w-xl text-lg leading-8 text-slate-300">
+            Discover the PerfiPay vision: a connected platform for digital
+            payments, wallet services and future financial tools.
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-4">
+          <div className="mt-9 flex flex-wrap gap-4">
             <Link
               href="/perfi-pay/signup"
-              className="rounded-lg bg-amber-400 px-6 py-3 font-bold text-slate-950 hover:bg-amber-300"
+              className="rounded-xl bg-amber-400 px-7 py-4 font-bold text-slate-950 transition hover:bg-amber-300"
             >
               Create Account
             </Link>
-
             <Link
               href="/perfi-pay/login"
-              className="rounded-lg border border-amber-400 px-6 py-3 font-semibold text-amber-400 hover:bg-amber-400/10"
+              className="rounded-xl border border-amber-400/70 px-7 py-4 font-bold text-amber-400 transition hover:bg-amber-400/10"
             >
               Sign In
             </Link>
           </div>
+
+          <p className="mt-5 text-sm text-slate-500">
+            Under development. Availability depends on feature release and
+            authorisation.
+          </p>
         </div>
 
-        <div className="rounded-3xl border border-amber-400/20 bg-slate-900 p-8 sm:p-10">
-          <p className="text-sm font-semibold uppercase tracking-widest text-amber-400">
-            The PerfiPay vision
-          </p>
+        <div className="rounded-3xl border border-amber-400/30 bg-gradient-to-br from-slate-900 to-slate-950 p-8 shadow-2xl shadow-amber-400/5 sm:p-10">
+          <div className="mb-8 flex items-center justify-between">
+            <span className="text-sm font-semibold text-slate-300">
+              THE PERFI ECOSYSTEM
+            </span>
+            <span className="rounded-full border border-amber-400/30 px-3 py-1 text-xs text-amber-400">
+              INNOVATION
+            </span>
+          </div>
 
-          <h2 className="mt-4 text-3xl font-bold">
-            One platform. More possibilities.
-          </h2>
-
-          <ul className="mt-6 space-y-4 text-slate-300">
-            <li>01 — Digital wallet</li>
-            <li>02 — Staking and mining</li>
-            <li>03 — Crypto marketplace</li>
-            <li>04 — Bill payments</li>
-            <li>05 — Secure user accounts</li>
-          </ul>
-
-          <p className="mt-8 text-sm text-slate-400">
-            These are planned features. Financial functions will be
-            connected and tested before being offered to users.
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+            <p className="text-sm text-slate-400">Built for more possibilities</p>
+            <p className="mt-2 text-3xl font-bold text-amber-400">
+              PERFI PAY
+            </p>
+            <div className="mt-6 h-px bg-amber-400/20" />
+            <div className="mt-5 grid grid-cols-2 gap-4">
+              {[
+                "Digital payments",
+                "Wallet services",
+                "Merchant tools",
+                "Marketplace",
+              ].map((feature) => (
+                <div
+                  key={feature}
+                  className="rounded-xl border border-white/10 p-4 text-sm text-slate-200"
+                >
+                  {feature}
+                </div>
+              ))}
+            </div>
+          </div>
+          <p className="mt-6 text-sm leading-6 text-slate-400">
+            Wallet, trading and other financial features will only be offered
+            when implemented, tested and authorised.
           </p>
         </div>
       </section>
-    </PerfiPayLayout>
+
+      <footer className="border-t border-amber-400/20 px-6 py-8 text-center">
+        <p className="font-semibold text-white">
+          PERFITECH GLOBAL VENTURE LIMITED
+        </p>
+        <p className="mt-3 text-sm tracking-wide text-amber-400">
+          INNOVATION | INVEST | BUILD | GROW | GLOBAL
+        </p>
+        <p className="mt-3 text-xs text-slate-500">
+          © {new Date().getFullYear()} Perfitech. All rights reserved.
+        </p>
+      </footer>
+    </main>
   );
 }
