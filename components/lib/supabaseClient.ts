@@ -1,14 +1,19 @@
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-import { createClient } from "@supabase/supabase-js";
+let supabase: SupabaseClient | null = null;
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+export function getSupabaseClient(): SupabaseClient | null {
+  if (supabase) return supabase;
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error(
-    "Supabase configuration is missing. Check your Cloudflare environment variables."
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+  if (!url || !key) {
+    // Don't throw during module initialization (prevents build failures when env vars
+    // are not injected into the build environment). Callers should handle `null`.
+    return null;
+  }
+
+  supabase = createClient(url, key);
+  return supabase;
 }
-
-export const supabase = createClient(supabaseUrl, supabaseKey);
