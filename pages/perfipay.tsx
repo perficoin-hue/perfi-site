@@ -1,5 +1,6 @@
 
 import Head from "next/head";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 
@@ -44,7 +45,6 @@ const ASSETS = [
 export default function PerfiPay() {
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [installMessage, setInstallMessage] = useState("");
-
   const [marketItems, setMarketItems] =
     useState<MarketItem[]>(INITIAL_ITEMS);
   const [itemName, setItemName] = useState("");
@@ -76,7 +76,6 @@ export default function PerfiPay() {
     try {
       await installPrompt.prompt();
       const result = await installPrompt.userChoice;
-
       setInstallMessage(
         result.outcome === "accepted"
           ? "Installation accepted by your browser."
@@ -93,7 +92,6 @@ export default function PerfiPay() {
 
   function listMarketItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     const price = Number(itemPrice);
 
     if (
@@ -157,7 +155,7 @@ export default function PerfiPay() {
               PERFI<span className="text-amber-400">PAY</span>
             </a>
 
-            <nav className="flex flex-wrap gap-4 text-sm text-slate-300">
+            <nav className="flex flex-wrap items-center gap-4 text-sm text-slate-300">
               <a href="#wallet" className="hover:text-amber-400">
                 Wallet
               </a>
@@ -173,6 +171,18 @@ export default function PerfiPay() {
               <a href="/support" className="hover:text-amber-400">
                 Support
               </a>
+              <Link
+                href="/login"
+                className="rounded-lg border border-white/20 px-4 py-2 hover:border-amber-400 hover:text-amber-400"
+              >
+                Log In
+              </Link>
+              <Link
+                href="/signup"
+                className="rounded-lg bg-amber-400 px-4 py-2 font-bold text-slate-950 hover:bg-amber-300"
+              >
+                Sign Up
+              </Link>
             </nav>
           </div>
         </header>
@@ -197,12 +207,18 @@ export default function PerfiPay() {
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <a
-                href="#wallet"
+              <Link
+                href="/signup"
                 className="rounded-xl bg-amber-400 px-6 py-3 font-bold text-slate-950 hover:bg-amber-300"
               >
-                Explore PerfiPay
-              </a>
+                Create PerfiPay Account
+              </Link>
+              <Link
+                href="/login"
+                className="rounded-xl border border-white/20 px-6 py-3 font-bold hover:border-amber-400"
+              >
+                Log In
+              </Link>
               <a
                 href="#marketplace"
                 className="rounded-xl border border-white/20 px-6 py-3 font-bold hover:border-amber-400"
@@ -212,8 +228,9 @@ export default function PerfiPay() {
             </div>
 
             <p className="mt-4 text-xs text-slate-400">
-              Preview interface. Real wallet, payment and trading services
-              are not connected by this page.
+              Account registration and login are being connected. Real
+              wallet, payment and trading services require separate
+              secure integrations.
             </p>
           </div>
 
@@ -261,6 +278,21 @@ export default function PerfiPay() {
                   </p>
                 </div>
               ))}
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <Link
+                href="/signup"
+                className="rounded-xl bg-amber-400 px-4 py-3 text-center font-bold text-slate-950 hover:bg-amber-300"
+              >
+                Create Account
+              </Link>
+              <Link
+                href="/login"
+                className="rounded-xl border border-white/20 px-4 py-3 text-center font-bold hover:border-amber-400"
+              >
+                Log In
+              </Link>
             </div>
           </div>
         </section>
@@ -549,19 +581,23 @@ export default function PerfiPay() {
             INNOVATION | INVEST | BUILD | GROW | GLOBAL
           </p>
 
-          <p className="mt-3">
+          <div className="mt-4 flex flex-wrap justify-center gap-4">
+            <Link href="/signup" className="hover:text-amber-400">
+              Sign Up
+            </Link>
+            <Link href="/login" className="hover:text-amber-400">
+              Log In
+            </Link>
             <a href="/" className="hover:text-amber-400">
               PERFI SITE
             </a>
-            {" · "}
             <a href="/contact" className="hover:text-amber-400">
               Contact
             </a>
-            {" · "}
             <a href="/support" className="hover:text-amber-400">
               Support
             </a>
-          </p>
+          </div>
         </footer>
       </main>
     </>
