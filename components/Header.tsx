@@ -27,7 +27,7 @@ export default function Header() {
           <Link href="/services" className="text-gray-700 hover:text-perfi-navy">
             Services
           </Link>
-          <Link href="/perfipay" className="text-gray-700 hover:text-perfi-navy">
+          <Link href="/perfi-pay" className="text-gray-700 hover:text-perfi-navy">
             PerfiPay
           </Link>
           <Link href="/builder" className="text-perfi-navy font-semibold">

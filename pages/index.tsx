@@ -1,4 +1,3 @@
-
 import Link from 'next/link'
 import Head from 'next/head'
 import Header from '../components/Header'
@@ -105,8 +104,8 @@ export default function Home() {
                 </Link>
 
                 <Link
-                  href="/perfipay"
-                  className="inline-flex items-center justify-center gap-3 rounded-lg border border-white/30 px-7 py-4 font-semibold text-white transition hover:border-perfi-gold hover:text-perfi-gold"
+                  href="/perfi-pay"
+                  className="inline-flex items-center justify-center gap-3 rounded-lg border border-white/30 px-7 py-4 font-semibold text-white transition hover:border-perfi-gold hover:text-perfi[...]
                 >
                   Discover PerfiPay <span aria-hidden="true">↗</span>
                 </Link>
@@ -282,7 +281,7 @@ export default function Home() {
                 the project as it develops.
               </p>
               <Link
-                href="/perfipay"
+                href="/perfi-pay"
                 className="mt-7 inline-flex items-center justify-center rounded-lg bg-perfi-navy px-7 py-4 font-bold text-white transition hover:bg-slate-800"
               >
                 Explore PerfiPay <span className="ml-3 text-perfi-gold">→</span>
