@@ -105,7 +105,7 @@ export default function Home() {
 
                 <Link
                   href="/perfi-pay"
-                  className="inline-flex items-center justify-center gap-3 rounded-lg border border-white/30 px-7 py-4 font-semibold text-white transition hover:border-perfi-gold hover:text-perfi[...]
+                  className="inline-flex items-center justify-center gap-3 rounded-lg border border-white/30 px-7 py-4 font-semibold text-white transition hover:border-perfi-gold hover:text-perfi-gold"
                 >
                   Discover PerfiPay <span aria-hidden="true">↗</span>
                 </Link>
