@@ -39,7 +39,6 @@ const ASSETS = [
   ["USDT", "Tether"],
   ["USDC", "USD Coin"],
   ["PERFI", "PERFI Token"],
-  ["USDTz", "USDTz"],
 ];
 
 export default function PerfiPay() {
@@ -141,7 +140,7 @@ export default function PerfiPay() {
         <title>PerfiPay | PERFI SITE</title>
         <meta
           name="description"
-          content="Explore PerfiPay, the planned digital wallet, PERFI marketplace and payment platform."
+          content="Explore PerfiPay, the digital wallet, PERFI marketplace and payment platform."
         />
         <meta name="theme-color" content="#08152f" />
         <meta
@@ -319,7 +318,6 @@ export default function PerfiPay() {
             </p>
 
             <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_1.2fr]">
-              {/* SELL FORM */}
               <form
                 onSubmit={listMarketItem}
                 className="rounded-2xl border border-white/10 bg-slate-900 p-6"
@@ -331,9 +329,7 @@ export default function PerfiPay() {
                   <input
                     required
                     value={itemName}
-                    onChange={(event) =>
-                      setItemName(event.target.value)
-                    }
+                    onChange={(event) => setItemName(event.target.value)}
                     maxLength={100}
                     placeholder="What are you selling?"
                     className="mt-2 w-full rounded-lg border border-white/20 bg-slate-950 px-3 py-3 text-white"
@@ -363,9 +359,7 @@ export default function PerfiPay() {
                     min="0.00000001"
                     step="any"
                     value={itemPrice}
-                    onChange={(event) =>
-                      setItemPrice(event.target.value)
-                    }
+                    onChange={(event) => setItemPrice(event.target.value)}
                     placeholder="Enter price in PERFI"
                     className="mt-2 w-full rounded-lg border border-white/20 bg-slate-950 px-3 py-3 text-white"
                   />
@@ -403,12 +397,9 @@ export default function PerfiPay() {
                 </p>
               </form>
 
-              {/* PRODUCT LISTINGS */}
               <div>
                 <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-xl font-bold">
-                    Explore listings
-                  </h3>
+                  <h3 className="text-xl font-bold">Explore listings</h3>
                   <span className="text-sm text-slate-400">
                     {marketItems.length} demo items
                   </span>
@@ -537,7 +528,7 @@ export default function PerfiPay() {
             )}
 
             <p className="mt-4 text-sm">
-              The APK link works only after a genuine, signed APK is
+              The APK link works only after a genuine signed APK is
               uploaded to public/downloads/perfipay.apk.
             </p>
 
