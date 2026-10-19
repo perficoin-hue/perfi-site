@@ -1,7 +1,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/router";
-import { supabase } from "../../lib/supabaseClient";
+import { getSupabaseClient } from "../../lib/supabaseClient";
 
 type Props = {
   children: ReactNode;
@@ -10,42 +10,32 @@ type Props = {
 export default function ProtectedRoute({ children }: Props) {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     let mounted = true;
 
     async function check() {
       try {
-        if (!supabase) {
-          throw new Error(
-            "Supabase is not configured. Please check the production environment variables."
-          );
-        }
+        const client = getSupabaseClient();
+        const { data, error } = await client.auth.getUser();
 
-        const { data, error: authError } = await supabase.auth.getUser();
-
-        if (authError) {
-          throw authError;
-        }
-
-        if (!data.user) {
-          await router.replace("/perfi-pay/login");
+        if (error || !data.user) {
+          if (mounted) {
+            await router.replace("/perfi-pay/login");
+          }
           return;
         }
-
+      } catch (error) {
         if (mounted) {
-          setChecking(false);
+          setMessage(
+            error instanceof Error
+              ? error.message
+              : "Unable to verify your login."
+          );
         }
-      } catch (err: unknown) {
-        if (!mounted) return;
-
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Unable to verify your login. Please try again."
-        );
-        setChecking(false);
+      } finally {
+        if (mounted) setChecking(false);
       }
     }
 
@@ -57,25 +47,11 @@ export default function ProtectedRoute({ children }: Props) {
   }, [router]);
 
   if (checking) {
-    return <div className="p-6 text-white">Checking authentication...</div>;
+    return <div className="p-6">Checking authentication...</div>;
   }
 
-  if (error) {
-    return (
-      <div
-        role="alert"
-        className="rounded-xl border border-amber-400/30 p-6 text-amber-300"
-      >
-        {error}
-        <button
-          type="button"
-          onClick={() => router.reload()}
-          className="ml-3 underline"
-        >
-          Try again
-        </button>
-      </div>
-    );
+  if (message) {
+    return <div className="p-6 text-amber-400">{message}</div>;
   }
 
   return <>{children}</>;
