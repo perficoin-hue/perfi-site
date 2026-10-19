@@ -17,9 +17,7 @@ const assetsByNetwork: Record<
   string,
   { symbol: string; name: string }[]
 > = {
-  BTC: [
-    { symbol: "BTC", name: "Bitcoin" },
-  ],
+  BTC: [{ symbol: "BTC", name: "Bitcoin" }],
   ETH: [
     { symbol: "ETH", name: "Ether" },
     { symbol: "USDT", name: "Tether USD (Ethereum)" },
@@ -55,7 +53,18 @@ export default function WalletPage() {
   const [address, setAddress] = useState("");
   const [notice, setNotice] = useState("");
 
+  // Local wallet creation and backup confirmation
+  const [recoveryPhrase, setRecoveryPhrase] = useState<string | null>(null);
+  const [pendingAddress, setPendingAddress] = useState("");
+  const [walletAddress, setWalletAddress] = useState("");
+  const [wordThree, setWordThree] = useState("");
+  const [wordEight, setWordEight] = useState("");
+  const [walletBusy, setWalletBusy] = useState(false);
+  const [walletMessage, setWalletMessage] = useState("");
+
   const assets = assetsByNetwork[network] ?? [];
+
+  const isEvmNetwork = ["ETH", "BSC", "POL"].includes(network);
 
   const filteredAssets = useMemo(
     () =>
@@ -80,6 +89,68 @@ export default function WalletPage() {
     setNotice("");
   }
 
+  async function createWallet() {
+    if (walletAddress) {
+      setWalletMessage(
+        "A wallet address is already available on this page. Back up and verify your existing wallet before creating another."
+      );
+      return;
+    }
+
+    setWalletBusy(true);
+    setWalletMessage("");
+
+    try {
+      const { Wallet } = await import("ethers");
+      const created = Wallet.createRandom();
+      const phrase = created.mnemonic?.phrase;
+
+      if (!phrase) {
+        throw new Error("Wallet recovery phrase could not be created.");
+      }
+
+      setRecoveryPhrase(phrase);
+      setPendingAddress(created.address);
+      setWordThree("");
+      setWordEight("");
+      setWalletMessage(
+        "Write down all 12 words in the correct order on paper. Never share your phrase with anyone."
+      );
+    } catch {
+      setWalletMessage(
+        "Wallet creation failed. Check that ethers is installed, then try again."
+      );
+    } finally {
+      setWalletBusy(false);
+    }
+  }
+
+  function confirmWalletBackup() {
+    if (!recoveryPhrase) return;
+
+    const words = recoveryPhrase.trim().split(/\s+/);
+    const thirdMatches =
+      wordThree.trim().toLowerCase() === words[2]?.toLowerCase();
+    const eighthMatches =
+      wordEight.trim().toLowerCase() === words[7]?.toLowerCase();
+
+    if (!thirdMatches || !eighthMatches) {
+      setWalletMessage(
+        "The words do not match. Check word 3 and word 8 on your written backup."
+      );
+      return;
+    }
+
+    setWalletAddress(pendingAddress);
+    setRecoveryPhrase(null);
+    setPendingAddress("");
+    setWordThree("");
+    setWordEight("");
+    setWalletMessage(
+      "Backup check passed. Your EVM public address is ready for testing. This page does not save your recovery phrase to Supabase or browser storage."
+    );
+  }
+
   function handleReview() {
     if (network === "OTHER") {
       setNotice("Choose a supported network before continuing.");
@@ -101,8 +172,28 @@ export default function WalletPage() {
       return;
     }
 
+    if (action === "swap" && (!amount || Number(amount) <= 0)) {
+      setNotice("Enter a valid amount to review.");
+      return;
+    }
+
+    if (action === "receive" && !walletAddress) {
+      setNotice("Create and back up an EVM wallet first. Other network wallets are not implemented yet.");
+      return;
+    }
+
+    if (
+      action === "send" &&
+      isEvmNetwork &&
+      walletAddress &&
+      !/^0x[a-fA-F0-9]{40}$/.test(address.trim())
+    ) {
+      setNotice("Enter a valid EVM recipient address beginning with 0x.");
+      return;
+    }
+
     setNotice(
-      "Review only: live wallet signing, balances, and provider quotes are not connected yet. No transaction has been sent."
+      "Review only: live balances, blockchain signing, and provider quotes are not connected. No transaction has been sent."
     );
   }
 
@@ -117,14 +208,197 @@ export default function WalletPage() {
             >
               ← Dashboard
             </Link>
+
             <p className="mt-5 text-sm font-semibold uppercase tracking-[0.2em] text-amber-400">
               MENU 01
             </p>
+
             <h1 className="mt-2 text-3xl font-bold">Crypto Wallet</h1>
+
             <p className="mt-2 text-slate-400">
-              Select a chain to view its assets and wallet actions.
+              Create an EVM wallet, verify your backup, and explore supported
+              network assets.
             </p>
           </div>
+
+          {/* Wallet creation and recovery phrase backup */}
+          <section className="space-y-4 rounded-2xl border border-amber-400/30 bg-slate-900 p-5">
+            <div>
+              <h2 className="text-xl font-bold">Create your PerfiPay wallet</h2>
+              <p className="mt-2 text-sm text-slate-400">
+                Generate a wallet for Ethereum, BNB Smart Chain, and Polygon.
+                These networks use the same EVM address for this wallet.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-red-500/30 bg-red-950/30 p-4">
+              <p className="font-semibold text-red-300">
+                Important security warning
+              </p>
+              <p className="mt-2 text-sm text-slate-300">
+                Your recovery phrase controls your wallet funds. Anyone who
+                gets it may take your assets. Never share it with anyone,
+                including PerfiPay support. Do not use this prototype wallet
+                to store real funds until the wallet has been independently
+                security-reviewed.
+              </p>
+            </div>
+
+            {!walletAddress && !recoveryPhrase && (
+              <button
+                type="button"
+                onClick={createWallet}
+                disabled={walletBusy}
+                className="w-full rounded-xl bg-amber-400 px-5 py-3 font-bold text-slate-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {walletBusy ? "Creating wallet..." : "Create new EVM wallet"}
+              </button>
+            )}
+
+            {recoveryPhrase && (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold text-amber-300">
+                    Your 12-word recovery phrase
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-300">
+                    Write the words down in order on paper. Do not take a
+                    screenshot, send them in a message, or store them online.
+                    Confirm the requested words below before leaving this page.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {recoveryPhrase.split(" ").map((word, index) => (
+                    <div
+                      key={`${index}-${word}`}
+                      className="rounded-lg border border-white/10 bg-slate-950 p-3"
+                    >
+                      <span className="block text-xs text-slate-500">
+                        Word {index + 1}
+                      </span>
+                      <span className="mt-1 block break-words font-semibold text-white">
+                        {word}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-xl border border-amber-400/20 bg-slate-950 p-4">
+                  <label
+                    htmlFor="backup-word-three"
+                    className="block text-sm text-slate-300"
+                  >
+                    Enter word 3 from your written backup
+                  </label>
+                  <input
+                    id="backup-word-three"
+                    type="password"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={wordThree}
+                    onChange={(event) => setWordThree(event.target.value)}
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none focus:border-amber-400"
+                    placeholder="Word 3"
+                  />
+
+                  <label
+                    htmlFor="backup-word-eight"
+                    className="mt-4 block text-sm text-slate-300"
+                  >
+                    Enter word 8 from your written backup
+                  </label>
+                  <input
+                    id="backup-word-eight"
+                    type="password"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={wordEight}
+                    onChange={(event) => setWordEight(event.target.value)}
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none focus:border-amber-400"
+                    placeholder="Word 8"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={confirmWalletBackup}
+                  className="w-full rounded-xl bg-amber-400 px-5 py-3 font-bold text-slate-950 transition hover:bg-amber-300"
+                >
+                  Confirm written backup
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRecoveryPhrase(null);
+                    setPendingAddress("");
+                    setWordThree("");
+                    setWordEight("");
+                    setWalletMessage(
+                      "The displayed phrase has been cleared from this page. Make sure you have safely backed it up before leaving."
+                    );
+                  }}
+                  className="w-full rounded-xl border border-white/10 px-5 py-3 font-semibold text-slate-300 hover:border-red-400/50"
+                >
+                  Clear phrase from page
+                </button>
+              </div>
+            )}
+
+            {walletAddress && (
+              <div className="space-y-3 rounded-xl border border-emerald-400/20 bg-slate-950 p-4">
+                <p className="font-semibold text-emerald-300">
+                  EVM public address
+                </p>
+                <p className="break-all font-mono text-sm text-white">
+                  {walletAddress}
+                </p>
+                <p className="text-xs text-slate-400">
+                  This is a public address, not your recovery phrase. It is
+                  currently held only in this page's memory and will disappear
+                  when the page is refreshed or closed. Wallet restoration and
+                  secure persistence have not been implemented.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard
+                      .writeText(walletAddress)
+                      .then(() =>
+                        setWalletMessage("Public address copied.")
+                      )
+                      .catch(() =>
+                        setWalletMessage(
+                          "Could not copy automatically. Select and copy the public address manually."
+                        )
+                      );
+                  }}
+                  className="rounded-xl border border-amber-400/30 px-4 py-2 text-sm font-semibold text-amber-300 hover:bg-amber-400/10"
+                >
+                  Copy public address
+                </button>
+              </div>
+            )}
+
+            {walletMessage && (
+              <p
+                role="status"
+                className="rounded-xl border border-amber-400/20 bg-slate-950 p-3 text-sm text-amber-200"
+              >
+                {walletMessage}
+              </p>
+            )}
+
+            {!isEvmNetwork && (
+              <p className="text-sm text-amber-200">
+                The generated wallet does not support {network} addresses.
+                Bitcoin and Solana wallet creation must be implemented
+                separately. Do not send funds to the EVM address from these
+                networks.
+              </p>
+            )}
+          </section>
 
           <section className="rounded-2xl border border-amber-400/20 bg-slate-900 p-5">
             <p className="text-sm text-slate-400">Total crypto balance</p>
@@ -132,7 +406,8 @@ export default function WalletPage() {
               Not connected
             </p>
             <p className="mt-2 text-xs text-slate-500">
-              A verified wallet balance provider is needed to display real funds.
+              A verified blockchain balance provider is needed to display real
+              funds.
             </p>
           </section>
 
@@ -165,8 +440,11 @@ export default function WalletPage() {
               </span>
             </div>
 
-            <label htmlFor="token-search" className="mt-4 block text-sm text-slate-400">
-              Search this network's assets
+            <label
+              htmlFor="token-search"
+              className="mt-4 block text-sm text-slate-400"
+            >
+              Search this network&apos;s assets
             </label>
             <input
               id="token-search"
@@ -178,7 +456,8 @@ export default function WalletPage() {
 
             {network === "OTHER" ? (
               <p className="mt-4 text-sm text-slate-400">
-                Other networks require configuration before their assets can be displayed.
+                Other networks require configuration before their assets can
+                be displayed.
               </p>
             ) : filteredAssets.length === 0 ? (
               <p className="mt-4 text-sm text-slate-400">
@@ -211,8 +490,10 @@ export default function WalletPage() {
                 ))}
               </div>
             )}
+
             <p className="mt-3 text-xs text-slate-500">
-              Starter token list only. A verified token registry is needed for a complete list and real balances.
+              Starter token list only. A verified token registry is needed for
+              a complete list and real balances.
             </p>
           </section>
 
@@ -243,10 +524,28 @@ export default function WalletPage() {
 
             {action === "receive" ? (
               <div className="mt-5 rounded-xl border border-white/10 bg-slate-950 p-4">
-                <p className="text-sm text-slate-300">Receiving asset: {asset || "Select an asset"}</p>
-                <p className="mt-2 text-sm text-slate-400">
-                  Your receiving address will appear here when a wallet for this network is connected.
+                <p className="text-sm text-slate-300">
+                  Receiving asset: {asset || "Select an asset"}
                 </p>
+
+                {isEvmNetwork && walletAddress ? (
+                  <>
+                    <p className="mt-3 break-all font-mono text-sm text-white">
+                      {walletAddress}
+                    </p>
+                    <p className="mt-3 text-xs text-amber-300">
+                      Verify the network carefully before receiving assets.
+                      Only use this address for supported EVM networks.
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-2 text-sm text-slate-400">
+                    {isEvmNetwork
+                      ? "Create an EVM wallet above to display your receiving address."
+                      : "A wallet for this network has not been implemented yet."}
+                  </p>
+                )}
+
                 <p className="mt-3 text-xs text-amber-300">
                   Never deposit using an address from a different network.
                 </p>
@@ -255,7 +554,10 @@ export default function WalletPage() {
               <div className="mt-5 space-y-4">
                 {action === "swap" && (
                   <div>
-                    <label htmlFor="swap-to" className="block text-sm text-slate-400">
+                    <label
+                      htmlFor="swap-to"
+                      className="block text-sm text-slate-400"
+                    >
                       Swap to
                     </label>
                     <select
@@ -277,7 +579,10 @@ export default function WalletPage() {
                 )}
 
                 <div>
-                  <label htmlFor="send-amount" className="block text-sm text-slate-400">
+                  <label
+                    htmlFor="send-amount"
+                    className="block text-sm text-slate-400"
+                  >
                     Amount ({asset || "asset"})
                   </label>
                   <input
@@ -294,7 +599,10 @@ export default function WalletPage() {
 
                 {action === "send" && (
                   <div>
-                    <label htmlFor="recipient" className="block text-sm text-slate-400">
+                    <label
+                      htmlFor="recipient"
+                      className="block text-sm text-slate-400"
+                    >
                       Recipient address
                     </label>
                     <input
