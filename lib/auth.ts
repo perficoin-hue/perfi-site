@@ -1,32 +1,66 @@
-import { supabase } from "./supabaseClient";
+
+import { getSupabaseClient } from "./supabaseClient";
 
 export async function signUp(email: string, password: string) {
-  const { data, error } = await supabase.auth.signUp({ email, password });
-  return { data, error };
+  try {
+    const { data, error } = await getSupabaseClient().auth.signUp({
+      email,
+      password,
+    });
+    return { data, error };
+  } catch (error) {
+    return { data: null, error: toError(error) };
+  }
 }
 
 export async function signIn(email: string, password: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  return { data, error };
+  try {
+    const { data, error } = await getSupabaseClient().auth.signInWithPassword({
+      email,
+      password,
+    });
+    return { data, error };
+  } catch (error) {
+    return { data: null, error: toError(error) };
+  }
 }
 
 export async function signOut() {
-  const { error } = await supabase.auth.signOut();
-  return { error };
+  try {
+    const { error } = await getSupabaseClient().auth.signOut();
+    return { error };
+  } catch (error) {
+    return { error: toError(error) };
+  }
 }
 
 export async function resetPassword(email: string) {
-  const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo:
-      typeof window !== "undefined"
-        ? `${window.location.origin}/perfi-pay/login`
-        : undefined,
-  });
+  try {
+    const { data, error } = await getSupabaseClient().auth.resetPasswordForEmail(
+      email,
+      {
+        redirectTo:
+          typeof window !== "undefined"
+            ? `${window.location.origin}/perfi-pay/login`
+            : undefined,
+      }
+    );
 
-  return { data, error };
+    return { data, error };
+  } catch (error) {
+    return { data: null, error: toError(error) };
+  }
 }
 
 export async function getUser() {
-  const { data } = await supabase.auth.getUser();
-  return data?.user ?? null;
+  try {
+    const { data } = await getSupabaseClient().auth.getUser();
+    return data?.user ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
 }
