@@ -8,77 +8,60 @@ const ProtectedRoute = dynamic(
   { ssr: false }
 );
 
-const StakingPanel = dynamic(
-  () => import("../../components/perfipay/StakingPanel"),
-  { ssr: false }
-);
-
-const stakingOptions = [
-  { symbol: "PERFI", name: "Perfi Coin", apy: 8 },
-  { symbol: "BNB", name: "BNB", apy: 4 },
-  { symbol: "ETH", name: "Ethereum", apy: 3 },
-];
-
 export default function StakingPage() {
-  const [asset, setAsset] = useState("PERFI");
   const [amount, setAmount] = useState("");
   const [period, setPeriod] = useState("90");
   const [message, setMessage] = useState("");
 
-  const selected = stakingOptions.find((item) => item.symbol === asset)!;
-  const estimate = useMemo(() => {
+  // Illustrative rate only; replace with the actual approved PERFI staking rate.
+  const exampleApy = 8;
+
+  const estimatedRewards = useMemo(() => {
     const value = Number(amount);
     if (!Number.isFinite(value) || value <= 0) return 0;
-    return value * (selected.apy / 100) * (Number(period) / 365);
-  }, [amount, period, selected.apy]);
+
+    return value * (exampleApy / 100) * (Number(period) / 365);
+  }, [amount, period]);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     setMessage(
-      "This is a preview only. No tokens have been staked and no rewards have been earned. A secure staking contract and wallet connection are required before staking can go live."
+      "Preview only: no PERFI has been staked and no rewards have been earned. Connect a secure PERFI staking contract and wallet before enabling real staking."
     );
   }
 
   return (
     <ProtectedRoute>
       <PerfiPayLayout>
-        <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6">
+        <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6">
           <header>
             <h1 className="text-2xl font-bold text-slate-900">
-              PERFI Staking
+              PERFI Coin Staking
             </h1>
             <p className="mt-2 text-sm text-slate-600">
-              Review staking options and estimate potential rewards.
+              Stake PERFI Coin and review an estimate of potential rewards.
             </p>
           </header>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">
-              Staking calculator
-            </h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Example rates are for interface demonstration only, not guaranteed
-              returns or live offers.
-            </p>
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-900 font-bold text-white">
+                P
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  PERFI Coin
+                </h2>
+                <p className="text-sm text-slate-500">
+                  Only supported staking asset
+                </p>
+              </div>
+            </div>
 
-            <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
               <label className="block text-sm font-medium text-slate-700">
-                Choose asset
-                <select
-                  value={asset}
-                  onChange={(event) => setAsset(event.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 p-3"
-                >
-                  {stakingOptions.map((item) => (
-                    <option key={item.symbol} value={item.symbol}>
-                      {item.name} ({item.symbol})
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block text-sm font-medium text-slate-700">
-                Amount to stake
+                Amount of PERFI to stake
                 <input
                   type="number"
                   min="0"
@@ -86,13 +69,13 @@ export default function StakingPage() {
                   required
                   value={amount}
                   onChange={(event) => setAmount(event.target.value)}
-                  placeholder={`Enter amount in ${asset}`}
+                  placeholder="Enter PERFI amount"
                   className="mt-1 w-full rounded-xl border border-slate-300 p-3"
                 />
               </label>
 
               <label className="block text-sm font-medium text-slate-700">
-                Example staking period
+                Staking period
                 <select
                   value={period}
                   onChange={(event) => setPeriod(event.target.value)}
@@ -107,19 +90,20 @@ export default function StakingPage() {
 
               <div className="rounded-xl bg-slate-50 p-4">
                 <p className="text-sm text-slate-600">
-                  Illustrative annual rate
+                  Illustrative APY — not a live offer
                 </p>
                 <p className="text-xl font-bold text-slate-900">
-                  {selected.apy}% APY
+                  {exampleApy}%
                 </p>
+
                 <p className="mt-3 text-sm text-slate-600">
-                  Estimated rewards for selected period
+                  Estimated rewards for the selected period
                 </p>
                 <p className="text-xl font-bold text-slate-900">
-                  {estimate.toLocaleString(undefined, {
+                  {estimatedRewards.toLocaleString(undefined, {
                     maximumFractionDigits: 8,
                   })}{" "}
-                  {asset}
+                  PERFI
                 </p>
               </div>
 
@@ -127,7 +111,7 @@ export default function StakingPage() {
                 type="submit"
                 className="rounded-xl bg-blue-900 px-5 py-3 font-semibold text-white"
               >
-                Review staking
+                Review PERFI staking
               </button>
             </form>
 
@@ -143,16 +127,13 @@ export default function StakingPage() {
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-900">
-              My staking activity
+              My PERFI staking activity
             </h2>
             <p className="mt-2 text-sm text-slate-600">
-              No live staking positions are connected yet. Your positions and
-              rewards can appear here after wallet and staking-contract
-              integration.
+              Your active stakes, unlock dates and rewards will appear here
+              after the PERFI staking contract is connected.
             </p>
           </section>
-
-          <StakingPanel />
         </main>
       </PerfiPayLayout>
     </ProtectedRoute>
