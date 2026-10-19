@@ -1,15 +1,18 @@
+
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import { getSupabaseClient } from "../../lib/supabaseClient";
 
 // Server-backed 4-digit screenlock stored in Supabase user_metadata.
-// - Stores: screenlock_hash, screenlock_failed_attempts, screenlock_locked_until
-// - Basic brute-force protection: lock after MAX_ATTEMPTS for LOCK_DURATION_MIN minutes
-// Notes: This is an improvement over localStorage; consider stronger KDFs and server-side protections for production.
+// Note: production wallet security should use audited server-side protections.
 
 async function hashPasscode(pass: string) {
   if (typeof window === "undefined" || !pass) return null;
+
   const enc = new TextEncoder();
-  const hashBuffer = await window.crypto.subtle.digest("SHA-256", enc.encode(pass));
+  const hashBuffer = await window.crypto.subtle.digest(
+    "SHA-256",
+    enc.encode(pass)
+  );
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
@@ -26,186 +29,252 @@ export default function WalletOverview() {
   const MAX_ATTEMPTS = 5;
   const LOCK_DURATION_MIN = 5;
 
+  async function refreshUserMetadata() {
+    const { data } = await getSupabaseClient().auth.getUser();
+    const currentUser = data?.user ?? null;
+    setUser(currentUser);
+    return currentUser?.user_metadata ?? {};
+  }
+
   useEffect(() => {
     let mounted = true;
 
     async function init() {
-      const { data } = await supabase.auth.getUser();
-      const u = data?.user ?? null;
-      if (!mounted) return;
-      setUser(u);
+      try {
+        const { data } = await getSupabaseClient().auth.getUser();
+        const currentUser = data?.user ?? null;
+        if (!mounted) return;
 
-      const metadata = u?.user_metadata ?? {};
-      const hash = metadata?.screenlock_hash ?? null;
-      const failed = Number(metadata?.screenlock_failed_attempts ?? 0);
-      const lockedUntil = metadata?.screenlock_locked_until ? new Date(metadata.screenlock_locked_until) : null;
+        setUser(currentUser);
 
-      setHasPasscode(Boolean(hash));
+        const metadata = currentUser?.user_metadata ?? {};
+        const hash = metadata.screenlock_hash ?? null;
+        const lockedUntil = metadata.screenlock_locked_until
+          ? new Date(metadata.screenlock_locked_until)
+          : null;
 
-      if (lockedUntil && lockedUntil > new Date()) {
-        setLocked(true);
-        setMessage(`Screenlock locked until ${lockedUntil.toLocaleTimeString()}`);
-      } else {
-        setLocked(Boolean(hash));
+        setHasPasscode(Boolean(hash));
+
+        if (lockedUntil && lockedUntil > new Date()) {
+          setLocked(true);
+          setMessage(
+            `Screenlock locked until ${lockedUntil.toLocaleTimeString()}`
+          );
+        } else {
+          setLocked(Boolean(hash));
+          setMessage(null);
+        }
+      } catch (error) {
+        if (mounted) {
+          setMessage(
+            error instanceof Error
+              ? error.message
+              : "Unable to load your wallet."
+          );
+        }
       }
     }
 
-    init();
+    void init();
 
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
-      // refresh on auth changes
-      init();
-    });
+    let subscription:
+      | ReturnType<
+          ReturnType<typeof getSupabaseClient>["auth"]["onAuthStateChange"]
+        >["data"]["subscription"]
+      | undefined;
+
+    try {
+      const result = getSupabaseClient().auth.onAuthStateChange(() => {
+        void init();
+      });
+      subscription = result.data.subscription;
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to initialize authentication."
+      );
+    }
 
     return () => {
       mounted = false;
-      try {
-        sub?.subscription.unsubscribe();
-      } catch {}
+      subscription?.unsubscribe();
     };
   }, []);
 
-  async function refreshUserMetadata() {
-    const { data } = await supabase.auth.getUser();
-    const u = data?.user ?? null;
-    setUser(u);
-    return u?.user_metadata ?? {};
-  }
-
   async function handleSetPasscode() {
     setMessage(null);
-    if (!user) {
-      setMessage("Please sign in to set a passcode.");
-      return;
-    }
-    if (!/^[0-9]{4}$/.test(passInput)) {
-      setMessage("Passcode must be exactly 4 digits.");
-      return;
-    }
-    if (passInput !== confirmInput) {
-      setMessage("Passcodes do not match.");
-      return;
-    }
 
-    const hash = await hashPasscode(passInput);
-    if (!hash) {
-      setMessage("Unable to set passcode in this environment.");
-      return;
+    try {
+      if (!user) {
+        setMessage("Please sign in to set a passcode.");
+        return;
+      }
+      if (!/^[0-9]{4}$/.test(passInput)) {
+        setMessage("Passcode must be exactly 4 digits.");
+        return;
+      }
+      if (passInput !== confirmInput) {
+        setMessage("Passcodes do not match.");
+        return;
+      }
+
+      const hash = await hashPasscode(passInput);
+      if (!hash) {
+        setMessage("Unable to set passcode in this environment.");
+        return;
+      }
+
+      const { error } = await getSupabaseClient().auth.updateUser({
+        data: {
+          screenlock_hash: hash,
+          screenlock_failed_attempts: 0,
+          screenlock_locked_until: null,
+        },
+      });
+
+      if (error) {
+        setMessage("Failed to save passcode: " + error.message);
+        return;
+      }
+
+      await refreshUserMetadata();
+      setHasPasscode(true);
+      setLocked(true);
+      setPassInput("");
+      setConfirmInput("");
+      setMessage("Passcode set. The wallet is locked now.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Unable to set passcode."
+      );
     }
-
-    const { error } = await supabase.auth.updateUser({
-      data: {
-        screenlock_hash: hash,
-        screenlock_failed_attempts: 0,
-        screenlock_locked_until: null,
-      },
-    });
-
-    if (error) {
-      setMessage("Failed to save passcode: " + error.message);
-      return;
-    }
-
-    await refreshUserMetadata();
-    setHasPasscode(true);
-    setLocked(true);
-    setPassInput("");
-    setConfirmInput("");
-    setMessage("Passcode set. The wallet is locked now.");
   }
 
   async function handleUnlock() {
     setMessage(null);
-    if (!user) {
-      setMessage("Please sign in to unlock.");
-      return;
-    }
-    if (!/^[0-9]{4}$/.test(passInput)) {
-      setMessage("Enter a 4-digit passcode.");
-      return;
-    }
 
-    const metadata = await refreshUserMetadata();
-    const storedHash = metadata?.screenlock_hash ?? null;
-    const failed = Number(metadata?.screenlock_failed_attempts ?? 0);
-    const lockedUntil = metadata?.screenlock_locked_until ? new Date(metadata.screenlock_locked_until) : null;
-
-    if (lockedUntil && lockedUntil > new Date()) {
-      setLocked(true);
-      setMessage(`Screenlock locked until ${lockedUntil.toLocaleTimeString()}`);
-      return;
-    }
-
-    const hash = await hashPasscode(passInput);
-
-    if (hash && storedHash && hash === storedHash) {
-      // success: reset failed attempts
-      const { error } = await supabase.auth.updateUser({
-        data: { screenlock_failed_attempts: 0, screenlock_locked_until: null },
-      });
-      if (error) {
-        setMessage("Unlocked locally but failed to reset server metadata: " + error.message);
+    try {
+      if (!user) {
+        setMessage("Please sign in to unlock.");
+        return;
       }
-      setLocked(false);
+      if (!/^[0-9]{4}$/.test(passInput)) {
+        setMessage("Enter a 4-digit passcode.");
+        return;
+      }
+
+      const metadata = await refreshUserMetadata();
+      const storedHash = metadata.screenlock_hash ?? null;
+      const failed = Number(metadata.screenlock_failed_attempts ?? 0);
+      const lockedUntil = metadata.screenlock_locked_until
+        ? new Date(metadata.screenlock_locked_until)
+        : null;
+
+      if (lockedUntil && lockedUntil > new Date()) {
+        setLocked(true);
+        setMessage(
+          `Screenlock locked until ${lockedUntil.toLocaleTimeString()}`
+        );
+        return;
+      }
+
+      const hash = await hashPasscode(passInput);
+
+      if (hash && storedHash && hash === storedHash) {
+        const { error } = await getSupabaseClient().auth.updateUser({
+          data: {
+            screenlock_failed_attempts: 0,
+            screenlock_locked_until: null,
+          },
+        });
+
+        if (error) {
+          setMessage("Failed to reset attempts: " + error.message);
+          return;
+        }
+
+        setLocked(false);
+        setPassInput("");
+        setMessage(null);
+        return;
+      }
+
+      const newFailed = failed + 1;
+      let lockedUntilIso: string | null = null;
+
+      if (newFailed >= MAX_ATTEMPTS) {
+        lockedUntilIso = new Date(
+          Date.now() + LOCK_DURATION_MIN * 60 * 1000
+        ).toISOString();
+      }
+
+      const { error } = await getSupabaseClient().auth.updateUser({
+        data: {
+          screenlock_failed_attempts: newFailed,
+          screenlock_locked_until: lockedUntilIso,
+        },
+      });
+
+      if (error) {
+        setMessage("Error updating attempt count: " + error.message);
+        return;
+      }
+
+      if (lockedUntilIso) {
+        setLocked(true);
+        setMessage(
+          `Too many attempts. Locked until ${new Date(
+            lockedUntilIso
+          ).toLocaleTimeString()}`
+        );
+      } else {
+        setMessage(
+          `Incorrect passcode. ${MAX_ATTEMPTS - newFailed} attempts left.`
+        );
+      }
+
       setPassInput("");
-      setMessage(null);
-      return;
-    }
-
-    // failure: increment attempts
-    const newFailed = failed + 1;
-    let lockedUntilIso = null;
-    if (newFailed >= MAX_ATTEMPTS) {
-      const until = new Date(Date.now() + LOCK_DURATION_MIN * 60 * 1000);
-      lockedUntilIso = until.toISOString();
-    }
-
-    const { error } = await supabase.auth.updateUser({
-      data: {
-        screenlock_failed_attempts: newFailed,
-        screenlock_locked_until: lockedUntilIso,
-      },
-    });
-
-    if (error) {
-      setMessage("Error updating attempt count: " + error.message);
-      return;
-    }
-
-    if (lockedUntilIso) {
-      setLocked(true);
-      setMessage(`Too many attempts. Locked until ${new Date(lockedUntilIso).toLocaleTimeString()}`);
-    } else {
-      setMessage(`Incorrect passcode. ${MAX_ATTEMPTS - newFailed} attempts left.`);
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Unable to unlock wallet."
+      );
     }
   }
 
   async function handleDisablePasscode() {
     setMessage(null);
-    if (!user) {
-      setMessage("Please sign in to disable passcode.");
-      return;
+
+    try {
+      if (!user) {
+        setMessage("Please sign in to disable passcode.");
+        return;
+      }
+
+      const { error } = await getSupabaseClient().auth.updateUser({
+        data: {
+          screenlock_hash: null,
+          screenlock_failed_attempts: 0,
+          screenlock_locked_until: null,
+        },
+      });
+
+      if (error) {
+        setMessage("Unable to remove passcode: " + error.message);
+        return;
+      }
+
+      await refreshUserMetadata();
+      setHasPasscode(false);
+      setLocked(false);
+      setPassInput("");
+      setConfirmInput("");
+      setMessage("Passcode removed. Wallet unlocked.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Unable to remove passcode."
+      );
     }
-
-    const { error } = await supabase.auth.updateUser({
-      data: {
-        screenlock_hash: null,
-        screenlock_failed_attempts: 0,
-        screenlock_locked_until: null,
-      },
-    });
-
-    if (error) {
-      setMessage("Unable to remove passcode: " + error.message);
-      return;
-    }
-
-    await refreshUserMetadata();
-    setHasPasscode(false);
-    setLocked(false);
-    setPassInput("");
-    setConfirmInput("");
-    setMessage("Passcode removed. Wallet unlocked.");
   }
 
   if (!user) {
@@ -213,11 +282,23 @@ export default function WalletOverview() {
       <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
         <h2 className="text-lg font-semibold text-white">Wallet Overview</h2>
         <p className="mt-2 text-sm text-slate-400">
-          You must be signed in to set or use a screenlock. Sign in or create an account to continue.
+          You must be signed in to set or use a screenlock. Sign in or create
+          an account to continue.
         </p>
+        {message && <p className="mt-3 text-sm text-amber-300">{message}</p>}
         <div className="mt-4 flex gap-3">
-          <a href="/perfi-pay/login" className="rounded-md bg-amber-400 px-4 py-2 font-bold text-slate-950">Sign in</a>
-          <a href="/perfi-pay/signup" className="rounded-md border border-amber-400/20 px-4 py-2 text-amber-300">Create account</a>
+          <a
+            href="/perfi-pay/login"
+            className="rounded-md bg-amber-400 px-4 py-2 font-bold text-slate-950"
+          >
+            Sign in
+          </a>
+          <a
+            href="/perfi-pay/signup"
+            className="rounded-md border border-amber-400/20 px-4 py-2 text-amber-300"
+          >
+            Create account
+          </a>
         </div>
       </section>
     );
@@ -228,18 +309,23 @@ export default function WalletOverview() {
       <h2 className="text-lg font-semibold text-white">Wallet Overview</h2>
       <p className="mt-2 text-sm text-slate-400">
         This is a placeholder for wallet connections, addresses and balances.
-        Wallet integrations must use audited libraries (ethers.js, wallet
-        connect) and never store private keys or seed phrases in plain text.
-        Connect a wallet in a secure environment.
+        Wallet integrations must use audited libraries and never store private
+        keys or seed phrases in plain text.
       </p>
+
+      {message && <p className="mt-3 text-sm text-amber-300">{message}</p>}
 
       <div className="mt-4">
         {hasPasscode && locked ? (
           <div className="space-y-3">
-            <p className="text-sm text-amber-300">Enter your 4-digit screenlock to unlock the wallet.</p>
+            <p className="text-sm text-amber-300">
+              Enter your 4-digit screenlock to unlock the wallet.
+            </p>
             <input
               value={passInput}
-              onChange={(e) => setPassInput(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
+              onChange={(e) =>
+                setPassInput(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))
+              }
               type="password"
               inputMode="numeric"
               maxLength={4}
@@ -248,29 +334,37 @@ export default function WalletOverview() {
             />
             <div className="flex items-center gap-4">
               <button
-                onClick={handleUnlock}
+                onClick={() => void handleUnlock()}
                 className="rounded-md bg-amber-400 px-4 py-2 font-bold text-slate-950"
               >
                 Unlock
               </button>
               <button
-                onClick={() => { setPassInput(""); setMessage(null); }}
+                onClick={() => {
+                  setPassInput("");
+                  setMessage(null);
+                }}
                 className="rounded-md border border-amber-400/20 px-4 py-2 text-sm text-amber-300"
               >
                 Clear
               </button>
             </div>
-            {message && <p className="text-sm text-amber-300">{message}</p>}
           </div>
         ) : (
           <>
             {!hasPasscode && (
               <div className="mb-4 space-y-3">
-                <p className="text-sm text-amber-300">Set a 4-digit screenlock for quick access to your wallet.</p>
+                <p className="text-sm text-amber-300">
+                  Set a 4-digit screenlock for quick access to your wallet.
+                </p>
                 <div className="flex gap-2">
                   <input
                     value={passInput}
-                    onChange={(e) => setPassInput(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
+                    onChange={(e) =>
+                      setPassInput(
+                        e.target.value.replace(/[^0-9]/g, "").slice(0, 4)
+                      )
+                    }
                     type="password"
                     inputMode="numeric"
                     maxLength={4}
@@ -279,7 +373,11 @@ export default function WalletOverview() {
                   />
                   <input
                     value={confirmInput}
-                    onChange={(e) => setConfirmInput(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
+                    onChange={(e) =>
+                      setConfirmInput(
+                        e.target.value.replace(/[^0-9]/g, "").slice(0, 4)
+                      )
+                    }
                     type="password"
                     inputMode="numeric"
                     maxLength={4}
@@ -287,35 +385,37 @@ export default function WalletOverview() {
                     className="w-40 rounded-md bg-slate-900 px-3 py-2"
                   />
                 </div>
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={handleSetPasscode}
-                    className="rounded-md bg-amber-400 px-4 py-2 font-bold text-slate-950"
-                  >
-                    Set passcode
-                  </button>
-                </div>
-                {message && <p className="text-sm text-amber-300">{message}</p>}
+                <button
+                  onClick={() => void handleSetPasscode()}
+                  className="rounded-md bg-amber-400 px-4 py-2 font-bold text-slate-950"
+                >
+                  Set passcode
+                </button>
               </div>
             )}
 
             {hasPasscode && !locked && (
               <div className="mb-4">
-                <p className="text-sm text-slate-300">Wallet unlocked with screenlock.</p>
+                <p className="text-sm text-slate-300">
+                  Wallet unlocked with screenlock.
+                </p>
                 <button
-                  onClick={handleDisablePasscode}
+                  onClick={() => void handleDisablePasscode()}
                   className="mt-2 rounded-md border border-amber-400/20 px-4 py-2 text-sm text-amber-300"
                 >
                   Disable passcode
                 </button>
-                {message && <p className="mt-2 text-sm text-amber-300">{message}</p>}
               </div>
             )}
 
             <div className="mt-4 flex items-center gap-4">
               <button
                 onClick={() => setConnected((value) => !value)}
-                className={`rounded-md px-4 py-2 font-bold text-slate-950 ${locked ? "pointer-events-none bg-slate-700 opacity-50" : "bg-amber-400"}`}
+                className={`rounded-md px-4 py-2 font-bold text-slate-950 ${
+                  locked
+                    ? "pointer-events-none bg-slate-700 opacity-50"
+                    : "bg-amber-400"
+                }`}
                 disabled={locked}
               >
                 {connected ? "Disconnect" : "Connect Wallet"}
@@ -327,8 +427,12 @@ export default function WalletOverview() {
 
             {!locked && (
               <div className="mt-4 grid gap-2">
-                <div className="text-sm text-slate-300">Address: {connected ? "0x1234...abcd" : "—"}</div>
-                <div className="text-sm text-slate-300">Balance: {connected ? "100.00 PERFI" : "—"}</div>
+                <div className="text-sm text-slate-300">
+                  Address: {connected ? "0x1234...abcd" : "—"}
+                </div>
+                <div className="text-sm text-slate-300">
+                  Balance: {connected ? "100.00 PERFI" : "—"}
+                </div>
               </div>
             )}
           </>
