@@ -1,8 +1,9 @@
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import PerfiPayLayout from "../../components/perfipay/PerfiPayLayout";
 import ProtectedRoute from "../../components/perfipay/ProtectedRoute";
+import { getSupabaseClient } from "../../lib/supabaseClient";
 
 const networks = [
   { id: "BTC", name: "Bitcoin", symbol: "BTC" },
@@ -53,7 +54,7 @@ export default function WalletPage() {
   const [address, setAddress] = useState("");
   const [notice, setNotice] = useState("");
 
-  // Local wallet creation and backup confirmation
+  // Wallet creation and backup state.
   const [recoveryPhrase, setRecoveryPhrase] = useState<string | null>(null);
   const [pendingAddress, setPendingAddress] = useState("");
   const [walletAddress, setWalletAddress] = useState("");
@@ -61,9 +62,9 @@ export default function WalletPage() {
   const [wordEight, setWordEight] = useState("");
   const [walletBusy, setWalletBusy] = useState(false);
   const [walletMessage, setWalletMessage] = useState("");
+  const [walletLoading, setWalletLoading] = useState(true);
 
   const assets = assetsByNetwork[network] ?? [];
-
   const isEvmNetwork = ["ETH", "BSC", "POL"].includes(network);
 
   const filteredAssets = useMemo(
@@ -75,6 +76,67 @@ export default function WalletPage() {
       ),
     [assets, search]
   );
+
+  // Load the signed-in user's saved public address from Supabase.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSavedWallet() {
+      try {
+        const supabase = getSupabaseClient();
+
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (userError || !user) {
+          if (!cancelled) {
+            setWalletMessage(
+              "Please sign in to load your saved wallet."
+            );
+          }
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("perfi_wallets")
+          .select("public_address")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (error) {
+          if (!cancelled) {
+            setWalletMessage(
+              "Could not load your saved wallet. Check the Supabase table permissions."
+            );
+          }
+          return;
+        }
+
+        if (!cancelled && data?.public_address) {
+          setWalletAddress(data.public_address);
+          setWalletMessage("Your saved wallet address has been loaded.");
+        }
+      } catch {
+        if (!cancelled) {
+          setWalletMessage(
+            "Unable to load your wallet. Please refresh and try again."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setWalletLoading(false);
+        }
+      }
+    }
+
+    void loadSavedWallet();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function changeNetwork(nextNetwork: string) {
     setNetwork(nextNetwork);
@@ -90,9 +152,14 @@ export default function WalletPage() {
   }
 
   async function createWallet() {
+    if (walletLoading) {
+      setWalletMessage("Please wait while we check for your saved wallet.");
+      return;
+    }
+
     if (walletAddress) {
       setWalletMessage(
-        "A wallet address is already available on this page. Back up and verify your existing wallet before creating another."
+        "A saved wallet address is already available. Use that wallet instead of creating another one."
       );
       return;
     }
@@ -125,12 +192,15 @@ export default function WalletPage() {
     }
   }
 
-  function confirmWalletBackup() {
-    if (!recoveryPhrase) return;
+  // Verify the backup, then save only the public address.
+  async function confirmWalletBackup() {
+    if (!recoveryPhrase || !pendingAddress) return;
 
     const words = recoveryPhrase.trim().split(/\s+/);
+
     const thirdMatches =
       wordThree.trim().toLowerCase() === words[2]?.toLowerCase();
+
     const eighthMatches =
       wordEight.trim().toLowerCase() === words[7]?.toLowerCase();
 
@@ -141,14 +211,77 @@ export default function WalletPage() {
       return;
     }
 
-    setWalletAddress(pendingAddress);
-    setRecoveryPhrase(null);
-    setPendingAddress("");
-    setWordThree("");
-    setWordEight("");
-    setWalletMessage(
-      "Backup check passed. Your EVM public address is ready for testing. This page does not save your recovery phrase to Supabase or browser storage."
-    );
+    setWalletBusy(true);
+    setWalletMessage("");
+
+    try {
+      const supabase = getSupabaseClient();
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        setWalletMessage(
+          "Please sign in again before saving your wallet address. Keep your written backup safe."
+        );
+        return;
+      }
+
+      // Do not overwrite an existing wallet for this account.
+      const { data: existingWallet, error: lookupError } = await supabase
+        .from("perfi_wallets")
+        .select("public_address")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (lookupError) {
+        setWalletMessage(
+          "Could not check your existing wallet. Your recovery phrase remains on this page. Please try again."
+        );
+        return;
+      }
+
+      if (existingWallet?.public_address) {
+        setWalletAddress(existingWallet.public_address);
+        setWalletMessage(
+          "This account already has a saved wallet. The existing address was kept, and the new address was not saved. Do not discard the new recovery phrase until you have safely resolved this."
+        );
+        return;
+      }
+
+      const { error: saveError } = await supabase
+        .from("perfi_wallets")
+        .insert({
+          user_id: user.id,
+          public_address: pendingAddress,
+          chain_family: "EVM",
+        });
+
+      if (saveError) {
+        setWalletMessage(
+          "Could not save your wallet address. Your recovery phrase remains on this page. Check the table permissions and try again."
+        );
+        return;
+      }
+
+      setWalletAddress(pendingAddress);
+      setRecoveryPhrase(null);
+      setPendingAddress("");
+      setWordThree("");
+      setWordEight("");
+
+      setWalletMessage(
+        "Backup check passed. Your public wallet address is saved to your account. Your recovery phrase was not saved."
+      );
+    } catch {
+      setWalletMessage(
+        "Something went wrong while saving your wallet. Your recovery phrase remains on this page. Please try again."
+      );
+    } finally {
+      setWalletBusy(false);
+    }
   }
 
   function handleReview() {
@@ -162,7 +295,10 @@ export default function WalletPage() {
       return;
     }
 
-    if (action === "send" && (!address.trim() || !amount || Number(amount) <= 0)) {
+    if (
+      action === "send" &&
+      (!address.trim() || !amount || Number(amount) <= 0)
+    ) {
       setNotice("Enter a valid recipient address and amount.");
       return;
     }
@@ -178,7 +314,9 @@ export default function WalletPage() {
     }
 
     if (action === "receive" && !walletAddress) {
-      setNotice("Create and back up an EVM wallet first. Other network wallets are not implemented yet.");
+      setNotice(
+        "Create and back up an EVM wallet first. Other network wallets are not implemented yet."
+      );
       return;
     }
 
@@ -244,7 +382,13 @@ export default function WalletPage() {
               </p>
             </div>
 
-            {!walletAddress && !recoveryPhrase && (
+            {walletLoading && (
+              <p className="text-sm text-slate-400">
+                Checking for your saved wallet...
+              </p>
+            )}
+
+            {!walletLoading && !walletAddress && !recoveryPhrase && (
               <button
                 type="button"
                 onClick={createWallet}
@@ -322,10 +466,11 @@ export default function WalletPage() {
 
                 <button
                   type="button"
-                  onClick={confirmWalletBackup}
-                  className="w-full rounded-xl bg-amber-400 px-5 py-3 font-bold text-slate-950 transition hover:bg-amber-300"
+                  onClick={() => void confirmWalletBackup()}
+                  disabled={walletBusy}
+                  className="w-full rounded-xl bg-amber-400 px-5 py-3 font-bold text-slate-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Confirm written backup
+                  {walletBusy ? "Saving wallet..." : "Confirm written backup"}
                 </button>
 
                 <button
@@ -336,7 +481,7 @@ export default function WalletPage() {
                     setWordThree("");
                     setWordEight("");
                     setWalletMessage(
-                      "The displayed phrase has been cleared from this page. Make sure you have safely backed it up before leaving."
+                      "The displayed phrase has been cleared from this page. Only do this after safely backing it up."
                     );
                   }}
                   className="w-full rounded-xl border border-white/10 px-5 py-3 font-semibold text-slate-300 hover:border-red-400/50"
@@ -355,10 +500,10 @@ export default function WalletPage() {
                   {walletAddress}
                 </p>
                 <p className="text-xs text-slate-400">
-                  This is a public address, not your recovery phrase. It is
-                  currently held only in this page's memory and will disappear
-                  when the page is refreshed or closed. Wallet restoration and
-                  secure persistence have not been implemented.
+                  This public address is saved in your PerfiPay account.
+                  Ethereum, BNB Smart Chain, and Polygon use this same EVM
+                  address. Saving the address does not save your recovery
+                  phrase or enable transaction signing.
                 </p>
                 <button
                   type="button"
