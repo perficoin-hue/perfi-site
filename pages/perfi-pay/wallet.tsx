@@ -193,8 +193,13 @@ export default function WalletPage() {
   }
 
   // Verify the backup, then save only the public address.
-  async function confirmWalletBackup() {
-    if (!recoveryPhrase || !pendingAddress) return;
+ async function confirmWalletBackup() {
+  if (!recoveryPhrase || !pendingAddress) {
+    setWalletMessage(
+      "Wallet confirmation cannot continue. Please create your wallet again and make sure the recovery phrase is displayed."
+    );
+    return;
+  }
 
     const words = recoveryPhrase.trim().split(/\s+/);
 
