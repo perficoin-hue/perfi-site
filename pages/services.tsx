@@ -56,7 +56,7 @@ export default function Services() {
                 <span className="mt-5 text-[10px] font-extrabold uppercase tracking-[0.15em] text-amber-700">{service.tag}</span>
                 <h3 className="mt-2 text-xl font-extrabold text-perfi-navy">{service.title}</h3>
                 <p className="mt-2 flex-1 text-sm leading-7 text-slate-600">{service.desc}</p>
-                <Link href={service.title === 'Oil & Gas' ? '/biogas' : `/contact?service=${encodeURIComponent(service.title)}`} className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-perfi-navy hover:text-amber-700">
+                <Link href={service.title === 'Oil & Gas' ? '/services#biogas' : `/contact?service=${encodeURIComponent(service.title)}`} className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-perfi-navy hover:text-amber-700">
                   {service.title === 'Oil & Gas' ? 'Explore biogas solutions' : 'Explore service'} <span aria-hidden="true">↗</span>
                 </Link>
               </article>
@@ -64,14 +64,13 @@ export default function Services() {
           </div>
         </section>
 
-        <section id="biogas" className="bg-white px-5 py-16 sm:px-8 lg:py-24">
+        <section id="biogas" className="scroll-mt-6 bg-white px-5 py-16 sm:px-8 lg:py-24">
           <div className="mx-auto max-w-7xl">
             <div className="rounded-3xl bg-perfi-navy p-7 text-white sm:p-10 lg:p-14">
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-perfi-gold">Oil & Gas | Renewable energy</p>
               <h2 className="mt-4 max-w-4xl text-3xl font-black leading-tight sm:text-5xl">PERFITECH BIOGAS SOLUTION</h2>
               <p className="mt-3 max-w-4xl text-xl font-extrabold leading-snug text-perfi-gold sm:text-3xl">TURNING YOUR WASTE INTO COOKING GAS AND ELECTRICITY.</p>
               <p className="mt-5 max-w-3xl leading-8 text-slate-300">We develop biogas project concepts that convert suitable organic waste into renewable biogas through anaerobic digestion. System design and energy use depend on a site-specific assessment.</p>
-
               <div className="mt-9 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {processSteps.map((step, index) => <div key={step} className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/5 p-4">
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-perfi-gold font-black text-perfi-navy">{index + 1}</span>
@@ -84,7 +83,7 @@ export default function Services() {
               </div>
               <div className="mt-4 rounded-xl border border-white/15 p-4 text-sm leading-6 text-slate-300"><strong className="text-white">By-product:</strong> Digestate may be suitable as a soil amendment after appropriate treatment and subject to local requirements.</div>
               <div className="mt-8 flex flex-wrap gap-4">
-                <Link href="/biogas" className="rounded-lg bg-perfi-gold px-6 py-3 font-bold text-perfi-navy hover:brightness-110">Explore Our Biogas Solutions →</Link>
+                <Link href="/services#biogas" className="rounded-lg bg-perfi-gold px-6 py-3 font-bold text-perfi-navy hover:brightness-110">Explore Our Biogas Solutions →</Link>
                 <Link href="/contact?service=Biogas%20Project%20Consultation" className="rounded-lg border border-white/30 px-6 py-3 font-bold text-white hover:border-perfi-gold hover:text-perfi-gold">Request a Project Consultation</Link>
               </div>
               <p className="mt-5 text-xs leading-5 text-slate-400">Gas production, electricity output and potential savings are not guaranteed and require assessment of feedstock, site conditions and system design.</p>
