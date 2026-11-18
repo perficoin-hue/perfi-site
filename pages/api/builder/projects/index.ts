@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { authenticatedSupabase, jsonBody } from '../../../lib/builderApi';
-import { validateDraft } from '../../../lib/websiteBuilder';
+import { authenticatedSupabase, jsonBody } from '../../../../lib/builderApi';
+import { validateDraft } from '../../../../lib/websiteBuilder';
 
 export default async function projects(req: NextApiRequest, res: NextApiResponse) {
   const auth = await authenticatedSupabase(req, res);
