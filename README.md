@@ -24,8 +24,14 @@ The generation endpoint has basic per-instance request throttling. For productio
 
 The repository already uses Supabase Auth. Configure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, then apply `supabase/migrations/20261118000000_website_projects.sql` to create the owner-protected `website_projects` table. Logged-in projects use Supabase and row-level security. Without a signed-in session, drafts can be saved only in the current browser's local storage; they do not sync across devices and are not an account-backed storage option. Uploaded images are limited to 1 MB and are embedded in draft JSON; use Supabase Storage for larger assets before production scale.
 
+### Cloudflare deployment and routing
+
+This is a full-stack Next.js Pages Router application with API routes. The `/builder/ai` page is included in the Next.js route manifest when built. A static Cloudflare Pages deployment does not execute Next.js server routes or API endpoints; serving only static output is why `/builder/ai` responds with 404. There are no repository redirects or rewrites suppressing this route.
+
+Deploy the application as a Cloudflare Worker using `@opennextjs/cloudflare`, `open-next.config.ts`, and `wrangler.jsonc`. `npm run build` runs the OpenNext Cloudflare build, which generates the Next.js route manifest and `.open-next/worker.js`. Deploy the Worker with `npm run deploy` / `wrangler deploy`, and use its Worker preview hostname. The given `*.pages.dev` hostname belongs to Cloudflare Pages and will continue to serve the Pages deployment; it will not automatically route through the Worker. Cloudflare Pages build settings must not be used as the deployment target for this dynamic application. A CI workflow checks that `/builder/ai` appears in the generated route manifest and the Worker artifact exists.
+
 ### Hosting / publishing status
 
-Publishing is not enabled and no deployment is claimed. `/api/builder/publish` intentionally reports setup required. A production deployment still needs a Cloudflare Pages project, a tested server-side deployment worker/pipeline, protected Cloudflare credentials, `perfi-site.com` zone and wildcard DNS/routing, domain verification, and publishing status callbacks. Do not add a Cloudflare API token to browser-visible environment variables. Until that controlled pipeline is implemented and verified, drafts remain previews only.
+Publishing customer-created websites is not enabled. `/api/builder/publish` intentionally reports setup required. A production deployment still needs a tested server-side deployment pipeline, protected Cloudflare credentials, `perfi-site.com` zone and wildcard DNS/routing, domain verification, and publishing status callbacks. Do not add a Cloudflare API token to browser-visible environment variables. Until that controlled pipeline is implemented and verified, drafts remain previews only.
 
 The manual builder and existing PerfiPay pages remain separate and unchanged.
